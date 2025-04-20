@@ -312,6 +312,12 @@ _ERROR_CATEGORIES = [
     "build/namespaces",
     "build/printf_format",
     "build/storage_class",
+    "ecen330/comments"
+    "ecen330/data_types"
+    "ecen330/files"
+    "ecen330/magic_numbers"
+    "ecen330/miscellaneous"
+    "ecen330/naming"
     "legal/copyright",
     "readability/alt_tokens",
     "readability/braces",
@@ -2949,7 +2955,7 @@ def CheckInvalidIncrement(filename, clean_lines, linenum, error):
 
 
 def IsMacroDefinition(clean_lines, linenum):
-    if re.search(r"^#define", clean_lines[linenum]):
+    if re.search(r"^\s*#define", clean_lines[linenum]):
         return True
 
     return bool(linenum > 0 and re.search(r"\\$", clean_lines[linenum - 1]))
@@ -7266,6 +7272,187 @@ def CheckItemIndentationInNamespace(filename, raw_lines_no_comments, linenum, er
         )
 
 
+def CheckNoHeaderExecutableCode2_1(filename, clean_lines, linenum, file_extension, error):
+    """ If in a .h file, checks that there is no executable code.
+    only #defines and function declarations are allowed
+    maybe do this by disallowing "{" and "="
+    """
+    if IsHeaderExtension(file_extension):
+        line = clean_lines.elided[linenum]
+        pattern = r"=|\{"
+        match = re.search(pattern, line)
+        if match:
+            error(filename, linenum, "ecen330/files", 4, "Header files should not contain executable code, including function definitions and variable definitions")
+def CheckHeaderIncluded2_2(filename, include_state, error):
+    """ If in a .c file other than main.c, make sure you #include the corresponding .h file
+    """
+
+    fileinfo = FileInfo(filename)
+    first_include = message = None
+    basefilename = filename[0 : len(filename) - len(fileinfo.Extension())]
+    headerfile = basefilename + ".h"
+    if filename == "main.c":
+        return
+    headername = FileInfo(headerfile).RepositoryName()
+    for section_list in include_state.include_list:
+        for f in section_list:
+            include_text = f[0]
+            if headername in include_text or include_text in headername:
+                return
+            if not first_include:
+                first_include = f[1]
+
+    message = f"{fileinfo.RepositoryName()} should include its header file {headername}"
+
+    if message:
+        error(filename, first_include, "ecen330/files", 4, message)
+
+def CheckNamesMatchHeader3_1(filename, clean_lines, linenum, file_extension, error):
+    """ If in a .h file, checks that the function names and macro names
+    are preceded by the name of the header file and an underscore
+    """
+    if IsHeaderExtension(file_extension):
+        line = clean_lines.elided[linenum]
+        # get the name that it needs to be prefixed by
+        prefix = filename[:filename.rfind(".")].lower()+"_"
+        # see if we are defining a #define macro
+        pattern = r"^\s*#define\s+(\w+)"
+        match = re.match(pattern, line)
+        if match:
+            captured_word = match.group(1)
+            if captured_word.lower().find(prefix) != 0:
+                error(
+                    filename, linenum, "ecen330/naming", 4, "\"#define\" macros in header files should be prefixed by the header name + underscore."
+                )
+        # see if we are defining a function
+        regexp = r"(\w(\w|::|\*|\&|\s)*)\("  # decls * & space::name( ...
+        if match_result := re.match(regexp, line):
+            function_name = match_result.group(1).split()[-1]
+            if function_name.lower().find(prefix) != 0:
+                error(
+                    filename, linenum, "ecen330/naming", 4, "functions in header files should be prefixed by the header name + underscore."
+                )
+
+def CheckMacroUpperCase3_2(filename, clean_lines, linenum, error):
+    """ Checks if a line that begins with #define is followed by an all capital word
+    """
+    line = clean_lines.elided[linenum]
+    pattern = r"^\s*#define\s+(\w+)"  # Regex to match #define and capture the next word
+    match = re.match(pattern, line)
+
+    if match:
+        captured_word = match.group(1)
+        if not captured_word.isupper():  # Check if the captured word is all uppercase
+            error(
+                filename, linenum, "ecen330/naming", 4, "All \"#define\" names must be all uppercase letters."
+            )
+
+def CheckOnlyStdintIntegers4_1(filename, clean_lines, linenum, error):
+    """ Checks if there are any integer types not defined in stdint.h
+    """
+    line = clean_lines.elided[linenum]
+    # match a bunch of integer types
+    # long double isn't an integer type
+    # int main() is allowed
+    pattern = r"\b(?:(char(16_t|32_t)?)|wchar_t|bool|short|int(?!\s+main\b)|long(?!\s+double\b)|signed|unsigned|(ptrdiff_t|size_t|max_align_t|nullptr_t))\b"
+    if re.search(pattern, line):
+        error(
+            filename, linenum, "ecen330/data_types", 3, "Only use stdint integer types (unless used for file io or main return value)"
+        )
+
+def CheckCommentBeforeFunctionDef5_2(filename, clean_lines, linenum, error):
+    """ Make sure function definitions have a comment before them
+    """
+    line = clean_lines.elided[linenum]
+    regexp = r"(\w(\w|::|\*|\&|\s)*)\("  # decls * & space::name( ...
+    if match_result := re.match(regexp, line):
+        # It's a function.
+        # Look for next ';' or '{' to figure out if it's a declaration or definition
+        is_definition = False
+        lookahead_linenum = linenum
+        while (lookahead_linenum < clean_lines.num_lines):
+            lookahead_line = clean_lines.elided[lookahead_linenum]
+            if re.search(r"\{", lookahead_line):
+                is_definition = True
+                break
+            if re.search(r";", lookahead_line):
+                break
+            lookahead_linenum += 1
+        if is_definition:
+            # needs a comment on previous line
+            # if the cleansed version is the same as the non-cleansed, it probably doesn't have a comment
+            # line 0 seems to always be blank, so it will match, so no comment detected
+            if linenum == 1 or clean_lines.lines_without_raw_strings[linenum - 1] == clean_lines.lines[linenum - 1]:
+                error(
+                    filename, linenum, "ecen330/comments", 4, "Function definitions need comments on the line before that document purpose/arguments/return value"
+                )
+
+def CheckCommentBeforeScopeDef5_3(filename, clean_lines, linenum, error):
+    """ Make sure all scopes {} have comments associated with them
+    check line before and line after '{'
+    """
+    line = clean_lines.elided[linenum]
+    line_and_future_lines = '\n'.join(clean_lines.elided[linenum:])
+    match = re.search(r"\{", line)
+    if match:
+        # if this line contains an else,
+        # or this line has nothing before '{' and the previous line contains an else
+        # ignore it
+        if re.search(r"\belse\b", line):
+            return
+        if re.search(r"^\s*{", line):
+            if re.search(r"\belse\b", clean_lines.elided[linenum - 1]):
+                return
+        text_inside = _GetTextInside(line_and_future_lines, r"\{")
+        # count to see if there are more than 3 lines
+        inside_lines = text_inside.split("\n")
+        num_lines_inside = 0
+        for inside_line in inside_lines:
+            if not IsBlankLine(inside_line):
+                num_lines_inside += 1
+        if num_lines_inside > 3:
+            # check if there is a comment before or after
+            # before
+            # print("V11", clean_lines.lines_without_raw_strings[linenum - 1])
+            # print("V21", clean_lines.lines[linenum - 1])
+            # print("V12", clean_lines.lines_without_raw_strings[linenum + 1])
+            # print("V22", clean_lines.lines[linenum + 1])
+            if (linenum == 1 or clean_lines.lines_without_raw_strings[linenum - 1] == clean_lines.lines[linenum - 1]) and clean_lines.lines_without_raw_strings[linenum + 1] == clean_lines.lines[linenum + 1]:
+                error(
+                    filename, linenum, "ecen330/comments", 3, "Scopes longer than 3 lines need comments"
+                )
+                
+
+
+def CheckNoMagicNumbers7_1(filename, clean_lines, linenum, error):
+    """ Check if there are any magic numbers that aren't #define-ed
+    Limitation: Can't tell the difference between binary -1 and unary -1.
+    """
+    line = clean_lines.elided[linenum]
+    if IsMacroDefinition(clean_lines.elided, linenum):
+        return
+    pattern = r"(?<!\w)(?:0[xX])?(?:(\d+(\.\d*)?)(?:[eEpP][+-]?\d+)?)"
+    match = re.search(pattern, line)
+    if match:
+        captured_number = match.group(1)
+        if captured_number != "0" and captured_number != "0.0" and captured_number != "1" and captured_number != "1.0":
+            error(
+                filename, linenum, "ecen330/magic_numbers", 4, "Numbers must be #define-ed"
+            )
+
+def CheckNoConstExceptArray8_1(filename, clean_lines, linenum, error):
+    """ Checks that const keyword is only used to define arrays
+    """
+    line = clean_lines.elided[linenum]
+    # starts has the word const, not followed by some stuff that isn't an '=' and then an '['
+    # this matches bad examples like const a = b[4]; while not matching good examples like const a[4] = {0,0,0,0};
+    pattern = r"\bconst\b(?![^=]*\[)"
+    match = re.search(pattern, line)
+    if match:
+        error(
+            filename, linenum, "ecen330/miscellaneous", 4, "const can only be used to define arrays"
+        )
+
 def ProcessLine(
     filename,
     file_extension,
@@ -7315,6 +7502,25 @@ def ProcessLine(
     CheckMakePairUsesDeduction(filename, clean_lines, line, error)
     CheckRedundantVirtual(filename, clean_lines, line, error)
     CheckRedundantOverrideOrFinal(filename, clean_lines, line, error)
+    # 1_1 must be C - won't check
+    # 1_2 no compiler warnings - won't check
+    # 1_3 max 5 commented-out - maybe try to check?
+    # 1_4 no repetition - maybe try to check?
+    # 1_5 no delays - TODO partial
+    # 1_6 all code follow coding standard - that's what we're doing
+    CheckNoHeaderExecutableCode2_1(filename, clean_lines, line, file_extension, error)
+    # 2_2 .c includes .h - DONE elsewhere
+    CheckNamesMatchHeader3_1(filename, clean_lines, line, file_extension, error)
+    CheckMacroUpperCase3_2(filename, clean_lines, line, error)
+    # 3_3 meaningful #defines - won't check
+    CheckOnlyStdintIntegers4_1(filename, clean_lines, line, error)
+    # 5_1 meaningful comments - won't check
+    CheckCommentBeforeFunctionDef5_2(filename, clean_lines, line, error)
+    CheckCommentBeforeScopeDef5_3(filename, clean_lines, line, error)
+    # 6_1 use clang_format - won't check
+    CheckNoMagicNumbers7_1(filename, clean_lines, line, error)
+    CheckNoConstExceptArray8_1(filename, clean_lines, line, error)
+    # 9 state machine stuff - maybe? probably not
     if extra_check_functions:
         for check_fn in extra_check_functions:
             check_fn(filename, clean_lines, line, error)
@@ -7416,6 +7622,7 @@ def ProcessFileData(filename, file_extension, lines, error, extra_check_function
     # Check that the .cc file has included its header if it exists.
     if _IsSourceExtension(file_extension):
         CheckHeaderFileIncluded(filename, include_state, error)
+        CheckHeaderIncluded2_2(filename, include_state, error)
 
     # We check here rather than inside ProcessLine so that we see raw
     # lines rather than "cleaned" lines.
