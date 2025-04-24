@@ -1,6 +1,6 @@
 # byuecen330cpplint
 
-Checks some of the [BYU ECEn 330 Coding Standard](https://byu-cpe.github.io/ecen330/other/coding-standard/) rules.
+Checks some of the [BYU ECEn 330/390 Coding Standard](https://byu-cpe.github.io/ecen390/docs/coding-standard/) rules.
 
 Specifically, it checks the parts not struck through. If a part is struck through, you must still check it yourself.
 
@@ -20,7 +20,7 @@ Specifically, it checks the parts not struck through. If a part is struck throug
 
 2. Files
 
-    2.1 All “.h” files must contain declarations for all constant values, function prototypes, etc., that you want to “advertise” for use. All “.h” files must not contain executable code, only function declarations, #define, etc. This includes any definitions of any variables.
+    2.1 All “.h” files must contain declarations for all constant values, function prototypes, etc., that you want to “advertise” for use. All “.h” files must not contain executable code, only function declarations, #define, etc. This includes any definitions of any variables. ~~Note: do not modify the provided “.h” files or you will lose points from the coding checker. Keep #defines only needed within a “.c” file local to that file.~~
 
     2.2 All “.c” files must have a corresponding “.h” with the same base name, except for “main.c”.
 
@@ -35,27 +35,38 @@ Specifically, it checks the parts not struck through. If a part is struck throug
 4. Data Types
 
     4.1 For integer variables, you must use the types contained in stdint.h. There are two exceptions:
-        You may use int as the return type of main().
-        You may use the standard integer types when interacting with C or OS library calls (ie: char when working with strcpy(), int when calling open(), etc.).
+        
+    * You may use int as the return type of main().
+        
+    * ~~You may use the standard integer types when interacting with C or OS library calls (ie: char when working with strcpy(), int when calling open(), etc.).~~
 
 5. Comments
 
     ~~5.1 Comments must be meaningful. Make sure that your code completely describes your intent. If your code is unclear or does not completely describe what is going on, comment accordingly.~~
 
-    5.2 Each function definition (not declaration), including main(), must have a comment header (immediately before the definition) which describes the function purpose/behavior, the arguments, and the return value.
+    5.2 Each function definition (not declaration), including main(), must have a comment header (immediately before the definition) ~~which describes the function purpose/behavior, the arguments, and the return value.~~
 
     5.3 Each time you create a new scope (when using {} braces), there must be a comment associated with it to describe what the code is doing. Loops and conditionals, for example, define a new scope.
-        For if statements, a comment preceding the if is sufficient; you aren’t required to add additional comments for else/else if statements.
-        Small scope blocks (3 lines or less) don’t require a comment, just comment larger blocks.
+    
+    * The comment can immediately precede the scope ~~or be inside the braces.~~
+    
+    * For if statements, a comment preceding the if is sufficient; you aren’t required to add additional comments for else/else if statements.
+    
+    * Small scope blocks (4 lines or less) don’t require a comment, just comment larger blocks. Blank lines count.
 
 6. Formatting
 
     ~~6.1 You must use the clang-format code formatter on your code. The formatter will ensure that all indention is consistent throughout your code.~~
 
-7. Magic Numbers and Strings
+7. Magic Numbers
 
-    7.1 All scalar constants must be #define, with one exception:
-        The constants 0 or 1 may be used anywhere in your code. ~~You must still use #define for the constant -1.~~
+    7.1 All scalar constants must be #define’d, with these exceptions:
+    
+    * The constants -1, 0, 1, or 2 may be used anywhere in your code.
+    
+    * Constants may be used in a const array (e.g., const uint8_t data[] = {0x10, 0x20, ...};
+    
+    * Any constants may be used inside of a function that contains “test” as a part of its name.
 
 8. Miscellaneous
 
@@ -63,9 +74,9 @@ Specifically, it checks the parts not struck through. If a part is struck throug
 
 9. State Machines
 
-    ~~9.1 The state machine must use switch statements as taught by the textbook.~~
+    ~~9.1 The state machine must use two switch statements (for transitions and actions).~~
 
-    ~~9.2 State update must be before state action.~~
+    ~~9.2 State transitions must be before state actions.~~
 
     ~~9.3 The state names used in the enum must be the same as those used in your state diagrams.~~
 
@@ -74,3 +85,5 @@ Specifically, it checks the parts not struck through. If a part is struck throug
     ~~9.5 All variables in your state machine defined outside of a function must be defined using the static keyword.~~
 
     ~~9.6 You must provide an init function (base-name_init) that is called before any of your provided functions can be called. This function must initialize the currentState and any other state variables.~~
+
+Of course, this tool can definitely still mess up stuff. Trust at your own risk.

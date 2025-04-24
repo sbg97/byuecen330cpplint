@@ -1,0 +1,18 @@
+3.1 function names 1634 _Function State Count, 5577 _DropCommonSuffixes?
+2.2 .c files other than main.c must include header 2698 CheckHeaderFileIncluded
+5 comments: 1897 _RE_PATTERN_C_COMMENTS, 2012 FindNextMultiLineCommentStart, 2070 line.find("//"), 2785 CheckForMultilineCommentsAndStrings, 4073 CheckComment
+5.3 scopes contain comments (unless smaller than 3): 1634 _Function State Count 2295 CloseExpression/ReverseCloseExpression, 2962 _BlockInfo, 3215 NestingState, 4729 GetPreviousNonBlankLine, 4000 CheckForFunctionLengths, 5809 _GetTextInside
+6.1 must run clang-format: 2454 GetIndentLevel?
+3.2 defines must be upper case: 2951 IsMacroDefinition, 5209 FindCheckMacro
+3.3 defines must be meaningful: 2951 IsMacroDefinition
+4.1 only stdint.h types: 4508 _TYPES.match(), 5957 re.search(r"\b(short|long
+7269 ProcessLine()
+1.5 look for functions named delay() sleep() Sleep() wait()
+
+changes:
+don't modify .h files
+busy loops allowed in test code
+    -1 and 2 allowed
+    scope blocks of 4 don't need comments
+    magic numbers allowed in const arrays
+    magic numbers allowed in functions with the name test in them
