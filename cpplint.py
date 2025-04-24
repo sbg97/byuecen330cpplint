@@ -7415,7 +7415,7 @@ def CheckCommentBeforeScopeDef5_3(filename, clean_lines, linenum, error):
             # before by comparing lines_without_raw_strings and lines
             if (linenum == 1 or clean_lines.lines_without_raw_strings[linenum - 1] == clean_lines.lines[linenum - 1]) and clean_lines.lines_without_raw_strings[linenum + 1] == clean_lines.lines[linenum + 1]:
                 error(
-                    filename, linenum, "ecen330/comments", 3, "Scopes longer than 3 lines need comments"
+                    filename, linenum, "ecen330/comments", 3, "Scopes longer than 4 lines need comments"
                 )
                 
 
