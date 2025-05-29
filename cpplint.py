@@ -7319,6 +7319,8 @@ def CheckHeaderIncluded2_2(filename, include_state, error):
     message = f"{fileinfo.RepositoryName()} should include its header file {headername}"
 
     if message:
+        if(not first_include):
+            first_include = 1
         error(filename, first_include, "ecen330/files", 4, message)
 
 def CheckNamesMatchHeader3_1(filename, clean_lines, linenum, file_extension, error):
